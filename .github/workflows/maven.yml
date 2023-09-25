@@ -23,3 +23,56 @@ jobs:
       - name: Build with Maven
         run: mvn clean install
 
+      - name: Split JAR
+        run: |
+          # Set the input JAR file path
+          input_jar_file="target/todo-api-1.0-SNAPSHOT.jar"
+
+          # Set the output JAR file prefix
+          output_jar_prefix="output_part"
+
+          # Set the number of parts to split the JAR into
+          num_parts=4
+
+          # Check if the input JAR file exists
+          if [ ! -f "$input_jar_file" ]; then
+            echo "The input JAR file '$input_jar_file' does not exist."
+            exit 1
+          fi
+
+          # Calculate the size of the input JAR file
+          file_size=$(stat -c%s "$input_jar_file")
+
+          # Calculate the size for each output JAR file (equally divided)
+          split_size=$((file_size / num_parts))
+
+          # Create output directory if it doesn't exist
+          mkdir -p output
+
+          # Split the JAR file into parts
+          for ((i=1; i<=num_parts; i++)); do
+            # Calculate the byte range for this part
+            start_byte=$((split_size * (i - 1)))
+            end_byte=$((split_size * i))
+
+            # Generate the output JAR file name
+            output_jar_file="output/${output_jar_prefix}_${i}.jar"
+
+            # Extract the portion of the input JAR file
+            dd if="$input_jar_file" of="$output_jar_file" bs=1 count="$split_size" skip="$start_byte" seek=0
+
+            echo "Created part $i: $output_jar_file"
+          done
+
+          echo "JAR splitting completed."
+        
+      - name: Upload HTML Table to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Veracode Results Table
+          path: |
+            output/output_part_1.jar
+            output/output_part_2.jar
+            output/output_part_3.jar
+            output/output_part_4.jar
+
